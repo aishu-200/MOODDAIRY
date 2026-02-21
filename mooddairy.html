@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Year Mood Diary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            max-width: 1200px;
+            margin: auto;
+            background: hsla(0, 67%, 88%, 0.6);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .month {
+            background: #f3f3f6;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(74, 10, 222, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 6px;
+            text-align: center;
+            border: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        th {
+            background: #ddd;
+            cursor: default;
+        }
+
+        td:hover {
+            background: #f0f0f0;
+        }
+
+        /* Modal */
+        #moodModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 5px 10px;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .legend div {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        .color-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+
+        /* Mood Colors */
+        .happy { background: #90ee90; }
+        .sad { background: #add8e6; }
+        .angry { background: #ff7f7f; }
+        .excited { background: #ffd700; }
+        .neutral { background: #ddd; }
+       .note-popup {
+    position: fixed;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: hsl(0, 0%, 100%);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    display: none;
+    z-index: 1000;
+}
+
+.note-popup.show {
+    display: block;
+}
+
+    </style>
+</head>
+<body>
+
+<h1 id="yearTitle"></h1>
+
+<div class="legend">
+    <div><span class="color-box happy"></span> Happy</div>
+    <div><span class="color-box sad"></span> Sad</div>
+    <div><span class="color-box angry"></span> Angry</div>
+    <div><span class="color-box excited"></span> Excited</div>
+    <div><span class="color-box neutral"></span> Neutral</div>
+</div>
+
+<div class="calendar"></div>
+
+<!-- Mood Modal -->
+<div id="moodModal">
+    <div class="modal-content">
+
+        <h3 id="selectedDate"></h3>
+
+        <select id="moodText">
+            <option value="">select mood</option>
+            <option value="happy">Happy😊</option>
+            <option value="sad">Sad🥲</option>
+            <option value="angry">Angry😡</option>
+            <option value="excited">Excited😲</option>
+            <option value="neutral">Neutral🙃</option>
+        </select>
+<br>
+
+        <button onclick="saveMood()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+
+       
+        
+    </div>
+</div>
+
+<script>
+const calendarContainer = document.querySelector(".calendar");
+const year = new Date().getFullYear();
+document.getElementById("yearTitle").innerText = year;
+
+const months = ["January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"];
+
+let currentDateKey = "";
+
+// Render all 12 months
+
+for (let month = 0; month < 12; month++) {
+
+    const monthDiv = document.createElement("div");
+    monthDiv.classList.add("month");
+
+    const title = document.createElement("h2");
+    title.innerText = months[month];
+    monthDiv.appendChild(title);
+
+    const table = document.createElement("table");
+
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+        <tr>
+            <th>Sun</th>
+            <th>Mon</th>
+            <th>Tue</th>
+            <th>Wed</th>
+            <th>Thu</th>
+            <th>Fri</th>
+            <th>Sat</th>
+        </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    let firstDay = new Date(year, month, 1).getDay();
+    let daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let row = document.createElement("tr");
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        row.appendChild(document.createElement("td"));
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+
+        let cell = document.createElement("td");
+        cell.innerText = day;
+
+        let dateKey = `${year}-${month+1}-${day}`;
+        cell.dataset.date = dateKey;
+
+        cell.onclick = function() {
+            openModal(dateKey);
+        };
+
+        row.appendChild(cell);
+
+        if ((firstDay + day) % 7 === 0) {
+            tbody.appendChild(row);
+            row = document.createElement("tr");
+        }
+    }
+
+    tbody.appendChild(row);
+    table.appendChild(tbody);
+    monthDiv.appendChild(table);
+    calendarContainer.appendChild(monthDiv);
+}
+
+
+// Modal Functions
+function openModal(dateKey) {
+    currentDateKey = dateKey;
+    document.getElementById("moodModal").style.display = "flex";
+    document.getElementById("selectedDate").innerText = dateKey;
+
+    let saved = localStorage.getItem(dateKey);
+    document.getElementById("moodText").value = saved || "";
+}
+
+function closeModal() {
+    document.getElementById("moodModal").style.display = "none";
+}
+
+function saveMood() {
+    let text = document.getElementById("moodText").value.toLowerCase();
+    localStorage.setItem(currentDateKey, text);
+    colorDay(currentDateKey, text);
+    closeModal();
+}
+function saveMood() {
+    let text = document.getElementById("moodText").value.toLowerCase();
+    localStorage.setItem(currentDateKey, text);
+    colorDay(currentDateKey, text);
+    closeModal();
+
+    let message = "";
+    let color = "";
+    let font = "Arial";
+
+    if (text === "happy") {
+        message = "😊 Happy day! Keep smiling!";
+        color = "#d4ffd4";
+        font = "Comic Sans MS";
+    } 
+    else if (text === "sad") {
+        message = "😔 It's okay to feel sad. Tomorrow will be better.";
+        color = "#ffe6e6";
+        font = "Georgia";
+    } 
+    else if (text === "angry") {
+        message = "😡 Take a deep breath. Calm is powerful.";
+        color = "#ffe4e4";
+        font = "Tahoma";
+    } 
+    else if (text === "excited") {
+        message = "🎉 Excited vibes! Enjoy the energy!";
+        color = "#fff7d6";
+        font = "Verdana";
+    } 
+    else if (text === "neutral") {
+        message = "😌 Neutral day. Peace is good.";
+        color = "#f2f2f2";
+        font = "Arial";
+    }
+
+    if (message) {
+        let popup = document.getElementById("notePopup");
+        popup.innerText = message;
+        popup.style.background = color;
+        popup.style.fontFamily = font;
+        popup.classList.add("show");
+
+        setTimeout(() => {
+            popup.classList.remove("show");
+        }, 3000);
+    }
+}
+function clearMood() {
+    localStorage.removeItem(currentDateKey);
+
+    let cell = document.querySelector(`[data-date='${currentDateKey}']`);
+    if (cell) {
+        cell.classList.remove("happy", "sad", "angry", "excited", "neutral");
+    }
+
+    closeModal();
+}
+
+function colorDay(dateKey, mood) {
+    let cell = document.querySelector(`[data-date='${dateKey}']`);
+    if (!cell) return;
+
+    cell.classList.remove("happy", "sad", "angry", "excited", "neutral");
+
+    if (mood) {
+        cell.classList.add(mood);
+    }
+
+}
+
+// Load saved moods on page load
+window.onload = function() {
+    for (let key in localStorage) {
+        if (key.includes("-")) {
+            let text = localStorage.getItem(key);
+            colorDay(key, text);
+        }
+    }
+};
+</script>
+ <br>
+ <div id="notePopup" class="note-popup"></div>
+ <!-- Refresh button at bottom -->
+        <button style="margin-top:10px;" onclick="localStorage.clear()">Refresh</button>
+
+</body>
+</html>
